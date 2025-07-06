@@ -1,22 +1,121 @@
+async function loadBairrosData() {
+  const response = await fetch("bairros.json");
+  if (!response.ok) throw new Error("Erro ao carregar bairros.json");
+  return await response.json();
+}
+
 async function verValor() {
-  const input = document.getElementById("bairroInput").value.trim();
-  const popup = document.getElementById("popup");
-  const whatsapp = document.getElementById("whatsapp");
+  const bairroInput = document.getElementById("bairroInput");
+  const quantidadeInput = document.getElementById("quantidadeInput");
+  const tipoRastreador = document.getElementById("tipoRastreador");
+  const consultarBtn = document.getElementById("consultarBtn");
 
-  const response = await fetch("https://instalacao-por-bairro-gps.vercel.app/bairros.json");
-  const data = await response.json();
+  document.getElementById("resultBox").style.display = "none";
+  document.getElementById("mensalidadeBox").style.display = "none";
+  document.getElementById("beneficiosBox").style.display = "none";
+  document.getElementById("ctaButtons").style.display = "none";
 
-  const normalizar = str =>
-    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  try {
+    if (!bairroInput.value.trim()) throw new Error("Por favor, digite o nome do bairro");
 
-  const resultado = data.find(entry => normalizar(entry.bairro.trim()) === normalizar(input));
+    const quantidade = parseInt(quantidadeInput.value);
+    if (isNaN(quantidade) || quantidade < 1) throw new Error("Quantidade inválida");
 
-  popup.style.display = "block";
-  whatsapp.style.display = "block";
+    consultarBtn.disabled = true;
+    consultarBtn.textContent = "Calculando...";
 
-  if (resultado) {
-    popup.innerHTML = `✅ Sua instalação é apenas R$ ${resultado.valor}`;
-  } else {
-    popup.innerHTML = `❌ Este bairro não foi encontrado.<br>📌 Verifique se você digitou corretamente o nome do bairro.`;
+    const data = await loadBairrosData();
+
+    const searchTerm = bairroInput.value.trim()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    const resultado = data.find(entry =>
+      entry.bairro.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase().includes(searchTerm)
+    );
+
+    const resultBox = document.getElementById("resultBox");
+    const mensalidadeBox = document.getElementById("mensalidadeBox");
+    const beneficiosBox = document.getElementById("beneficiosBox");
+
+    if (resultado) {
+      const valorInstalacao = parseFloat(resultado.valor) * quantidade;
+
+      resultBox.className = "result-box success";
+      resultBox.innerHTML = `
+        <div class="price-highlight">R$ ${valorInstalacao.toFixed(2)}</div>
+        <p>Valor total para instalação em <strong>${resultado.bairro}</strong></p>
+      `;
+
+      if (tipoRastreador.value === "com") {
+        mensalidadeBox.className = "result-box success";
+        mensalidadeBox.innerHTML = `
+          <h3>📝 Plano com Bloqueio</h3>
+          <div class="price-highlight">R$ 49,90/mês</div>
+          <p>(Valor promocional para pagamento até o vencimento)</p>
+          <p>De: <del>R$ 54,90</del></p>
+        `;
+        beneficiosBox.className = "result-box success";
+        beneficiosBox.innerHTML = `
+          <h3>✨ Benefícios Inclusos:</h3>
+          <div class="benefits-list">
+            <p>✓ Localização em tempo real</p>
+            <p>✓ Bloqueio/desbloqueio remoto</p>
+            <p>✓ Histórico de rotas detalhado</p>
+            <p>✓ Alertas de ignição e movimento</p>
+            <p>✓ Suporte 24/7 especializado</p>
+          </div>
+        `;
+      } else {
+        mensalidadeBox.className = "result-box success";
+        mensalidadeBox.innerHTML = `
+          <h3>📝 Plano Básico</h3>
+          <div class="price-highlight">R$ 39,90/mês</div>
+        `;
+        beneficiosBox.className = "result-box success";
+        beneficiosBox.innerHTML = `
+          <h3>✨ Benefícios Inclusos:</h3>
+          <div class="benefits-list">
+            <p>✓ Localização em tempo real</p>
+            <p>✓ Histórico de rotas básico</p>
+            <p>✓ Alertas de ignição</p>
+            <p>✓ Suporte especializado</p>
+          </div>
+        `;
+      }
+
+      document.getElementById("ctaButtons").style.display = "block";
+    } else {
+      resultBox.className = "result-box error";
+      resultBox.innerHTML = `
+        <p>❌ Bairro não encontrado</p>
+        <p>Verifique a ortografia ou entre em contato para verificar cobertura.</p>
+      `;
+    }
+
+    resultBox.style.display = "block";
+    mensalidadeBox.style.display = "block";
+    beneficiosBox.style.display = "block";
+
+  } catch (error) {
+    const resultBox = document.getElementById("resultBox");
+    resultBox.className = "result-box error";
+    resultBox.innerHTML = `
+      <p>⚠️ ${error.message}</p>
+      <p>Tente novamente ou entre em contato conosco.</p>
+    `;
+    resultBox.style.display = "block";
+    console.error("Erro:", error);
+  } finally {
+    consultarBtn.disabled = false;
+    consultarBtn.textContent = "Calcular Valor";
   }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("consultarBtn").addEventListener("click", verValor);
+  document.getElementById("bairroInput").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") verValor();
+  });
+});
